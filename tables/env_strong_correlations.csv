@@ -1,0 +1,6 @@
+"var1","var2","rho"
+"Mean_SST","SD_SST",-0.9
+"Mean_SST","Mean_chl_a",-0.81
+"Mean_SST","SD_chl_a",-0.83
+"Mean_chl_a","SD_chl_a",0.9
+"Typhoon_recovery","Typhoon_frequency",-0.84
