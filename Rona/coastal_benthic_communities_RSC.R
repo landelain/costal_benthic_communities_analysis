@@ -13,20 +13,81 @@ library(ade4)
 library(pastecs) 
 library(psych)
 library(fmsb)
+library(NbClust)
+
 
 # reading in data
 setwd("C:/Users/rona.schenk/OneDrive - HESSO/7_Courses/2026_F_Statistics/Group Project/costal_benthic_communities_analysis/Rona")
-benthic <- read.csv("Linetal_dataset_Benthic.csv")
-cor <- read.csv("Linetal_dataset_Cor.csv")
-env <- read.csv("Linetal_dataset_Env.csv")
+benthic <- read.csv("benthic_clean.csv")
+com <- read.csv("communities_site.csv")
+env <- read.csv("env_clean.csv")
 
 
-# 1) exploration 
+# 1) exploration
 
 # objects = benthic species, descriptors = environmental data
 
 # descriptive stats
 summary(benthic)
+
+# 2) clustering (compare with paper)
+
+# take transect as row names
+rownames(benthic) <- benthic$Transect   # use transects as rownames 
+benthic$Transect <- NULL                # delete transect column
+
+dim(benthic)                            # control: 433 x 27 (# species)?
+
+# control before Hellinger
+all(sapply(benthic, is.numeric))   # Numerical in all columns? Should be true. 
+anyNA(benthic)                     # Any NA in the columns? Should be false. 
+sum(rowSums(benthic) == 0)         # Is any row sum = 0? Problematic bc of division / 0 in Hellinger transformation. Should be 0. 
+
+# Hellinger-transformation
+benthic_hel <- decostand(benthic, "hel")
+
+# control after Hellinger
+dim(benthic_hel)                   # Still 433 x 27? Nothing lost?
+summary(rowSums(benthic_hel^2))    # Should be 1's. Hellinger = Square root of relative values -> square should equal 1.
+
+# Euclidean distance (prep for NbClust)
+benthic_dist <- dist(benthic_hel, method = "euclidean")
+
+# Clustering with NbClust, for all indices
+nb <- NbClust(benthic_hel,
+              diss     = benthic_dist,
+              distance = NULL,
+              min.nc   = 2,
+              max.nc   = 10,
+              method   = "kmeans",
+              index    = "all") # all results in plot, with 5 as best number. Also tested for "ch" (2), "gap" (2) and "silhouette" (5)
+
+nb$Best.nc                 # best k per index
+table(nb$Best.nc[1, ])     # votes per k
+
+# k-means (?)
+km <- kmeans(benthic_hel, centers = 5, nstart = 100, iter.max = 100)
+community <- factor(km$cluster)
+table(community)
+
+# save clusters in df
+community <- data.frame(
+  transect  = rownames(benthic_hel),
+  community = factor(km$cluster)
+)
+
+
+# Fazit Clustering: If Hellinger transformation is done as in the paper, 
+# then I get the same optimal number of clusters (5 = best number for most 
+# indices, including ch and sihouette that we've seen in the course, 
+# but not for gap). Via k-means I get the clusters. Which transect belongs
+# to which cluster can be seen in the community dataframe.
+
+
+
+# X) old
+
+
 
 # subset bc only a few species are present
 benthic_pr <- benthic[,c(1, 6,11,26)] # 6,11,26 are columns I want
