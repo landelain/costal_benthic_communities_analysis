@@ -5,11 +5,6 @@
 library(psych)
 library(gplots)
 
-library(readr)
-library(dplyr)
-library(sf)
-library(ggplot2)
-
 
 ### PATH DEFINITION ###
 WORKING_DIR <- "~/Documents/EPFL/2026_MA_3/MULTI_R/costal_benthic_communities_analysis/Cyrielle"
@@ -100,7 +95,6 @@ ben_data <- open_and_analyze_data(BEN_DATA_FILE)
 ### PART 0 ###
 ##############
 
-
 # importe les données ;
 # csélectionne les 27 catégories benthiques ;
 # agrège les abondances par site en calculant leur moyenne ;
@@ -109,6 +103,14 @@ ben_data <- open_and_analyze_data(BEN_DATA_FILE)
 # prépare une couche géographique pour la cartographie.
 
 setwd(WORKING_DIR)
+
+
+library(readr)
+library(dplyr)
+library(sf)
+library(ggplot2)
+
+
 # 1. Importer les données
 df <- read.csv(JOINED_BEN_ENV_DATA_FILE, header = TRUE, sep = ",")
 
@@ -181,7 +183,7 @@ length(unique(site_data$Site_ID))
 # Résumé des abondances
 summary(site_data$Total_cover)
 
-# 5. Créer une couche géographique en WGS 84
+# 5. Créer une couche géographique en WGS 84, coords : attention, c'est (X, Y) = (Longitude, Latitude), dans cet ordre.
 sites_sf <- st_as_sf(
   site_data,
   coords = c("Longitude", "Latitude"),
@@ -226,7 +228,61 @@ st_write(
 ### Moran's I global ###
 
 
+library(spdep)
 
+# 1. Extraire les coordonnées projetées
+coords <- st_coordinates(sites_sf)
+
+# 2. Construire les voisins KNN
+knn4 <- knearneigh(coords, k = 4)
+nb4 <- knn2nb(knn4)
+
+# 3. Construire la matrice de poids spatiaux
+lw4 <- nb2listw(
+  nb4,
+  style = "W",
+  zero.policy = TRUE
+)
+
+# 4. Moran's I global sur la couverture totale
+x <- sites_sf$Total_cover
+
+# Vérifier les valeurs manquantes
+sum(is.na(x))
+
+# Retirer les sites incomplets de manière cohérente
+keep <- is.finite(x)
+
+coords_ok <- coords[keep, , drop = FALSE]
+
+nb_ok <- knn2nb(
+  knearneigh(coords_ok, k = 4)
+)
+
+lw_ok <- nb2listw(
+  nb_ok,
+  style = "W",
+  zero.policy = TRUE
+)
+
+x_ok <- x[keep]
+
+# Moran's I avec approximation analytique
+moran.test(
+  x_ok,
+  lw_ok,
+  zero.policy = TRUE
+)
+
+# Test par permutations
+set.seed(123)
+
+moran.mc(
+  x_ok,
+  lw_ok,
+  nsim = 9999,
+  zero.policy = TRUE
+)
 
 
 
