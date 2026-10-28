@@ -60,7 +60,7 @@ nb <- NbClust(benthic_hel,
               min.nc   = 2,
               max.nc   = 10,
               method   = "kmeans",
-              index    = "all") # all results in plot, with 5 as best number. Also tested for "ch" (2), "gap" (2) and "silhouette" (5)
+              index    = "all") # all results in plot, with 5 as best number. Also tested for "ch" (), "gap" (2) and "silhouette" (5)
 
 nb$Best.nc                 # best k per index
 table(nb$Best.nc[1, ])     # votes per k
@@ -82,6 +82,8 @@ community <- data.frame(
 # indices, including ch and sihouette that we've seen in the course, 
 # but not for gap). Via k-means I get the clusters. Which transect belongs
 # to which cluster can be seen in the community dataframe.
+
+write.csv(community, "community.csv", row.names = FALSE)
 
 
 
