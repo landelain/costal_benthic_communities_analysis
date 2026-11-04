@@ -2,27 +2,28 @@
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(datasets)
+library(ggpubr)
 
-# species
+data("iris")
 
-df_spec <- read.csv("data/Linetal_dataset_Benthic.csv")
-colnames(df_spec)
+iris2 <- mutate(iris, 
+       sepalratio = Sepal.Length / Sepal.Width,
+       petalratio = Petal.Length / Petal.Width)
 
-df_spec$sp_repent
+iris
+test$sepalratio
 
-h <- hist(log1p(df_spec$sp_repent), freq=FALSE)
-print(h)
+plot1 <- ggplot(data = iris) +
+  geom_point(mapping = aes(x = Sepal.Width, y = Sepal.Length, color=Species)) + 
+  geom_smooth(mapping = aes(x = Sepal.Width, y = Sepal.Length, color=Species))
+
+plot2 = ggplot(data = iris) +
+  geom_point(mapping = aes(x = sepalratio, y = petalratio, color=Species)) + 
+  geom_smooth(mapping = aes(x = sepalratio, y = petalratio, color=Species))
 
 
-# environment
-
-df_env <- read.csv("data/Linetal_dataset_Env.csv")
-colnames(df_env)
-
-tabledata <- table(df_env$Region)
-barplot(tabledata, las = 2, cex.names = 0.7)
-
-ggplot(df_env, aes(x=Longitude, y=Latitude)) + geom_point()
+ggarrange(plot1, plot2, ncol=2, nrow=1)
 
 
 

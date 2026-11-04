@@ -2,6 +2,9 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(purrr)
+library(magrittr)
+library(vegan)
+
 
 getwd()
 
@@ -116,3 +119,66 @@ p <- ggplot(filter(long, species == specie_of_interest),
   facet_wrap(~ site)
 
 ggsave(paste0("Lucas/site_models_", specie_of_interest, ".png"), p, width = 14, height = 10)
+
+
+
+# --------------- build transect depth profile ---------------- 
+
+
+# find the clusters depth profiles
+
+# data formatting
+
+df_spec <- read.csv("data_clean/benthic_clean.csv")
+
+parts <- strsplit(df_spec$Transect, "_")
+df_spec$site     <- paste(sapply(parts, `[`, 1), sapply(parts, `[`, 2), sep = "_")
+df_spec$depth    <- as.numeric(gsub("m", "", sapply(parts, `[`, 3)))
+df_spec$transect <- sapply(parts, `[`, 4)
+
+colnames(df_spec)
+
+avg_transect <- df_spec %>%
+  group_by(site, depth) %>%
+  summarise(across(where(is.numeric), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
+
+colnames(avg_transect)
+
+avg_hell <- avg_transect %>%
+  mutate(across(-c(site, depth), as.numeric)) %>% 
+  { bind_cols(select(., site, depth),
+              as_tibble(decostand(select(., -c(site, depth)), method = "hellinger"))) }
+
+
+head(avg_hell)
+
+# creation of the site depth profiles (hellinger distance)
+
+
+site_profiles <- avg_hell %>%
+  group_split(site) %>%
+  set_names(map_chr(., \(d) as.character(d$site[1]))) %>%
+  map(\(d) {
+    m <- d %>%
+      select(-site) %>%
+      tibble::column_to_rownames("depth") %>%
+      as.matrix()
+    dist(m, method = "euclidean")
+  })
+
+avg_hell$site
+
+avg_hell %>% group_by(site) %>% summarise(length(depth))
+
+site_profiles[["Dongsha_EastInnerAtoll"]]         
+as.matrix(site_profiles[["Dongsha_EastInnerAtoll"]]) 
+
+
+
+
+# create cluster's depth profile
+
+
+# dissimilarity of profiles
+
+
