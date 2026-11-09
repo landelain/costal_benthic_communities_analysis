@@ -65,23 +65,62 @@ nb <- NbClust(benthic_hel,
 nb$Best.nc                 # best k per index
 table(nb$Best.nc[1, ])     # votes per k
 
-# k-means (?)
+# k-means (benthic_hel or benthic_dist?)
 km <- kmeans(benthic_hel, centers = 5, nstart = 100, iter.max = 100)
 community <- factor(km$cluster)
 table(community)
 
-# save clusters in df
+km.2 <- kmeans(benthic_dist, centers = 5, nstart = 100, iter.max = 100)
+community.2 <- factor(km.2$cluster)
+table(community.2)
+
+
+# save clusters in df (for both versions of k-means clustering)
 community <- data.frame(
   transect  = rownames(benthic_hel),
   community = factor(km$cluster)
 )
 
+community.2 <- data.frame(
+  transect  = rownames(benthic_dist),
+  community.2 = factor(km.2$cluster.2)
+)
 
-# Fazit Clustering: If Hellinger transformation is done as in the paper, 
+# plot k-means clustering
+env_comm <- merge(env, community, by.x = "Transect", by.y = "transect")
+
+write.csv(env_comm, "env_comm_k5.csv", row.names = FALSE)
+
+summary(env_comm[, c("Longitude", "Latitude")])
+
+cols <- c("red", "blue", "darkgreen", "orange", "purple")
+
+par(mar = c(5, 4, 4, 7), xpd = TRUE)   # rechter Rand breiter
+plot(env_comm$Longitude, env_comm$Latitude,
+     col = cols[env_comm$community], pch = 19,
+     xlab = "Longitude", ylab = "Latitude", main = "Communities (k = 5)")
+
+set.seed(1)
+plot(jitter(env_comm$Longitude, amount = 0.03),
+     jitter(env_comm$Latitude,  amount = 0.03),
+     col  = adjustcolor(cols[env_comm$community], alpha.f = 0.6),
+     pch  = 19, cex = 0.8,
+     xlab = "Longitude", ylab = "Latitude",
+     main = "Communities (k = 5), mit Jitter")
+
+legend("topright", inset = c(-0.2, 0), legend = 1:5, col = cols,
+       pch = 19, title = "Community", bty = "n")
+par(mar = c(5, 4, 4, 2) + 0.1, xpd = FALSE)  # zurücksetzen
+
+table(env_comm$Region, env_comm$community) # schauen, welche Community in welche Region gehört
+
+
+# Fazit Clustering: If Hellinger transformation is done as in the paper (justified by many 0's), 
 # then I get the same optimal number of clusters (5 = best number for most 
 # indices, including ch and sihouette that we've seen in the course, 
 # but not for gap). Via k-means I get the clusters. Which transect belongs
 # to which cluster can be seen in the community dataframe.
+# Question: k-means on distance or or Hellinger-matrix?
 
 write.csv(community, "community.csv", row.names = FALSE)
 
