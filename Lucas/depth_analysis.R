@@ -4,6 +4,8 @@ library(tidyr)
 library(purrr)
 library(magrittr)
 library(vegan)
+library(gclus)
+
 
 
 getwd()
@@ -144,6 +146,7 @@ avg_transect <- df_spec %>%
 
 colnames(avg_transect)
 
+
 avg_hell <- avg_transect %>%
   mutate(across(-c(site, depth), as.numeric)) %>% 
   { bind_cols(select(., site, depth),
@@ -151,34 +154,108 @@ avg_hell <- avg_transect %>%
 
 
 head(avg_hell)
+avg_hell$depth
 
 # creation of the site depth profiles (hellinger distance)
 
+transect5 <- filter(avg_hell, depth == 5)
+transect10 <- filter(avg_hell, depth == 10)
+transect15 <- filter(avg_hell, depth == 15)
+transect20 <- filter(avg_hell, depth == 20)
+transect40 <- filter(avg_hell, depth == 40)
 
-site_profiles <- avg_hell %>%
-  group_split(site) %>%
-  set_names(map_chr(., \(d) as.character(d$site[1]))) %>%
-  map(\(d) {
-    m <- d %>%
-      select(-site) %>%
-      tibble::column_to_rownames("depth") %>%
-      as.matrix()
-    dist(m, method = "euclidean")
-  })
-
-avg_hell$site
-
-avg_hell %>% group_by(site) %>% summarise(length(depth))
-
-site_profiles[["Dongsha_EastInnerAtoll"]]         
-as.matrix(site_profiles[["Dongsha_EastInnerAtoll"]]) 
+length(transect5)
+length(transect10)
+length(transect15)
+length(transect20)
+length(transect40)
 
 
+# dissimilarity of depths
 
 
-# create cluster's depth profile
+image.real <- function(mat) { 
+  mat <- t(mat)[,nrow(mat):1]
+  image(mat, axes = FALSE, col = hcl.colors(15, palette="viridis"))
+  axis(1, at = seq(0, 1, length = nrow(mat)), labels = rownames(mat), las=2)
+  axis(2, at = seq(0, 1, length = ncol(mat)), labels = colnames(mat))
+  box() 
+}
 
 
-# dissimilarity of profiles
+# coldiss()
+# Color plots of a dissimilarity matrix, without and with ordering
+#
+# License: GPL-2
+# Author:  Francois Gillet
+#          23 August 2012 - rev. 07 June 2016
+
+"coldiss" <- function(D,
+                      nc = 4,
+                      byrank = TRUE,
+                      diag = FALSE) {
+  require(gclus)
+  
+  D <- as.dist(as.matrix(D))
+  
+  if (max(D) > 1)
+    D <- D / max(D)
+  
+  if (byrank) {
+    spe.color <- dmat.color(1 - D, cm.colors(nc))
+  }
+  else {
+    spe.color <- dmat.color(1 - D, byrank = FALSE, cm.colors(nc))
+  }
+  
+  spe.o <- order.single(1 - D)
+  speo.color <- spe.color[spe.o, spe.o]
+  
+  op <- par(mfrow = c(1, 2), pty = "s")
+  
+  if (diag) {
+    plotcolors(
+      spe.color,
+      rlabels = attributes(D)$Labels,
+      main = "Dissimilarity Matrix",
+      dlabels = attributes(D)$Labels
+    )
+    plotcolors(
+      speo.color,
+      rlabels = attributes(D)$Labels[spe.o],
+      main = "Ordered Dissimilarity Matrix",
+      dlabels = attributes(D)$Labels[spe.o]
+    )
+  }
+  else {
+    plotcolors(spe.color, rlabels = attributes(D)$Labels,
+               main = "Dissimilarity Matrix")
+    plotcolors(speo.color,
+               rlabels = attributes(D)$Labels[spe.o],
+               main = "Ordered Dissimilarity Matrix")
+  }
+  
+  par(op)
+}
+
+# Usage:
+# coldiss(D = dissimilarity.matrix, nc = 4, byrank = TRUE, diag = FALSE)
+# If D is not a dissimilarity matrix (max(D) > 1), then D is divided by max(D)
+# nc 							number of colours (classes)
+# byrank = TRUE		equal-sized classes
+# byrank = FALSE	equal-length intervals
+# diag = TRUE			print object labels also on the diagonal
+
+# Example:
+# coldiss(spe.dj, nc = 9, byrank = FALSE, diag = TRUE)
+
+
+test <- dist(transect5)
+image.real(as.matrix(test))
+coldiss(test, nc = 15, diag = TRUE)
+
+colnames(df_spec)
+rowSums(df_spec[, -c(1, 29, 30, 31)])
+df_spec
 
 
