@@ -156,9 +156,69 @@ map_gwr_sig_pop <- ggplot(gwr_results, aes(x = Longitude, y = Latitude,
     x = "Longitude", 
     y = "Latitude"
   )
-
 print(map_gwr_sig_pop)
 
+# 7. Distance-Decay Scatterplot
+
+# Calculate real geographic distances (in km)
+# spDists with longlat = TRUE accounts for the Earth's curvature
+coords_matrix <- as.matrix(cbind(dat$Longitude, dat$Latitude))
+geo_dist_matrix <- spDists(coords_matrix, longlat = TRUE) 
+
+# Calculate ecological similarity
+# Using Bray-Curtis similarity (1 - Bray-Curtis distance)
+bray_dist <- vegdist(species_data, method = "bray")
+eco_sim_matrix <- 1 - as.matrix(bray_dist)
+
+# Only lower triangle of matrices to not take into account pairs and self-comparisons
+geo_dist_vec <- geo_dist_matrix[lower.tri(geo_dist_matrix)]
+eco_sim_vec <- eco_sim_matrix[lower.tri(eco_sim_matrix)]
+
+# Dataframe for plotting
+decay_df <- data.frame(
+  Geographic_Distance_km = geo_dist_vec,
+  Similarity = eco_sim_vec
+)
+
+# Distance decay plot
+plot_decay <- ggplot(decay_df, aes(x = Geographic_Distance_km, y = Similarity)) +
+  geom_point(alpha = 0.5, color = "steelblue") +
+  # Linear trend line (you can change method to "loess" for non-linear)
+  geom_smooth(method = "lm", color = "firebrick", se = TRUE) + 
+  theme_minimal() +
+  labs(
+    title = "Distance Decay of Benthic Communities",
+    subtitle = "Community similarity as a function of geographic distance",
+    x = "Geographic Distance (km)",
+    y = "Community Similarity (1 - Bray-Curtis)"
+  )
+
+print(plot_decay)
+
+# 8. Overall Variability of Environmental Parameters
+
+# Only the numeric columns
+env_num <- env_data %>% select(where(is.numeric))
+
+# Min-Max scaling
+min_max_scale <- function(x) {
+  (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+}
+
+env_minmax <- as.data.frame(lapply(env_num, min_max_scale))
+
+# Boxplot
+dev.off() # Clear any overlapping ggplot canvas
+
+par(mar = c(5, 12, 4, 2)) 
+
+boxplot(env_minmax, 
+        horizontal = TRUE, 
+        las = 1,                 
+        col = "darkseagreen", 
+        main = "Variability of Environmental Variables (Min-Max Scaled)",
+        xlab = "Relative Spread (0 = Min, 1 = Max)",
+        cex.axis = 0.7) # Shrinks the axis text by 30% so they all fit
 # CLUSTERING (Hellinger + K-Means): Groups sites into distinct ecological 
 # communities based on the similarity of their species composition.
 #
@@ -170,3 +230,10 @@ print(map_gwr_sig_pop)
 #
 # LOCAL SPATIAL STRUCTURE DRIVERS (GWR): Local distance-weighted regressions. This maps exactly where specific 
 # anthropogenic factors (like population density) drive those algae clusters.
+#
+# DISTANCE DECAY SCATTERPLOT: Shows how distance reduce the similarity.
+# Not super strong but still it is visible. One thing that is important to see
+# is the variability at each distance, it is quite high. 
+#
+# VARIABILTY OF ENV PARAM: see which variable has high variability to see which
+# of the them could explain the clustering 
