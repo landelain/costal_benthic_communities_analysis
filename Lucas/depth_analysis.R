@@ -131,7 +131,8 @@ ggsave(paste0("Lucas/site_models_", specie_of_interest, ".png"), p, width = 14, 
 
 # data formatting
 
-df_spec <- read.csv("data_clean/benthic_clean.csv")
+getwd()
+df_spec <- read.csv("costal_benthic_communities_analysis/data_clean/benthic_clean.csv")
 
 parts <- strsplit(df_spec$Transect, "_")
 df_spec$site     <- paste(sapply(parts, `[`, 1), sapply(parts, `[`, 2), sep = "_")
