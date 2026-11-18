@@ -133,6 +133,7 @@ ggsave(paste0("Lucas/site_models_", specie_of_interest, ".png"), p, width = 14, 
 
 getwd()
 df_spec <- read.csv("costal_benthic_communities_analysis/data_clean/benthic_clean.csv")
+df_env <- read.csv("costal_benthic_communities_analysis/data_clean/env_clean.csv")
 
 parts <- strsplit(df_spec$Transect, "_")
 df_spec$site     <- paste(sapply(parts, `[`, 1), sapply(parts, `[`, 2), sep = "_")
@@ -259,4 +260,120 @@ colnames(df_spec)
 rowSums(df_spec[, -c(1, 29, 30, 31)])
 df_spec
 
+colnames(df_env)
 
+
+# ------------------------
+
+# set up and overview of depths 
+df_spec <- read.csv("costal_benthic_communities_analysis/data_clean/benthic_clean.csv")
+df_env <- read.csv("costal_benthic_communities_analysis/data_clean/env_clean.csv")
+
+parts <- strsplit(df_spec$Transect, "_")
+df_spec$site     <- paste(sapply(parts, `[`, 1), sapply(parts, `[`, 2), sep = "_")
+df_spec$depth    <- as.numeric(gsub("m", "", sapply(parts, `[`, 3)))
+df_spec$transect <- sapply(parts, `[`, 4)
+
+
+avg_transect <- df_spec %>%
+  group_by(site, depth) %>%
+  summarise(across(where(is.numeric), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
+
+
+table(avg_transect$site, avg_transect$depth)
+
+# how many depths per site
+avg_transect %>% count(site, name = "n_depths") %>% arrange(n_depths) %>% print(n=65)
+
+
+
+
+
+# total abundance vs depth
+species_cols <- setdiff(colnames(avg_transect), c("site", "depth", "region"))
+avg_transect$abund <- rowSums(avg_transect[, species_cols], na.rm = TRUE)
+
+ggplot(avg_transect, aes(factor(depth), abund)) +
+  geom_boxplot() + geom_jitter(width = 0.1, alpha = 0.5)
+
+kruskal.test(abund ~ factor(depth), data = avg_transect)
+
+
+#set up
+avg_transect$region <- sub("_.*", "", avg_transect$site)
+avg_transect$total_cover <- rowSums(avg_transect[, species_cols], na.rm = TRUE)
+species_cols <- setdiff(colnames(avg_transect), c("site", "depth", "region"))
+
+# effect of depth alone 
+ggplot(avg_transect, aes(factor(depth), total_cover)) +
+  geom_boxplot() + geom_jitter(width = 0.1, alpha = 0.5)
+summary(lm(log1p(total_cover) ~ depth + region, data = avg_transect))
+
+comm <- decostand(avg_transect[, species_cols], "hellinger")
+d <- dist(comm)
+adonis2(d ~ depth, data = avg_transect,
+        permutations = how(nperm = 999, blocks = avg_transect$region))
+
+
+# human activity
+
+df_env$Anthropogenic_land_use
+
+df_env$site <- paste(gsub(" ", "", df_env$Region),
+                     gsub(" ", "", df_env$Site), sep = "_")
+
+df_env$site <- sub("^EastTaiwan_",  "East_",  df_env$site)
+df_env$site <- sub("^NorthTaiwan_", "North_", df_env$site)
+df_env$site <- gsub("\\.", "", df_env$site)        # 82.5 -> 825
+df_env$site <- sub("Guishandao_", "Guishandao", df_env$site)
+df_env$site <- sub("Hujingyu_",   "Hujingyu",   df_env$site)
+df_env$site <- sub("Tiezhenyu_",  "Tiezhenyu",  df_env$site)
+df_env$site <- sub("Zhongao_",    "Zhongao",    df_env$site)
+
+# case-insensitive match handles GuianHarbor vs Guianharbor
+key <- function(x) tolower(x)
+df_env$key       <- key(df_env$site)
+avg_transect$key <- key(avg_transect$site)
+
+# check if it worked
+setdiff(avg_transect$key, df_env$key)  
+setdiff(df_env$key, avg_transect$key)  
+
+
+
+hum_vars <- c("Tourist_visitors", "Anthropogenic_land_use", "Population_density") 
+
+
+env_site <- df_env %>%
+  group_by(key) %>%
+  summarise(across(all_of(hum_vars), \(x) mean(x, na.rm = TRUE)),
+            mgmt = first(Management_status))
+
+pca <- prcomp(env_site[, hum_vars], scale. = TRUE)
+env_site$human <- pca$x[, 1]
+if (mean(pca$rotation[, 1]) < 0) env_site$human <- -env_site$human 
+
+meta <- left_join(avg_transect, env_site, by = "key")
+sum(complete.cases(meta$human)) # check that we get 87
+meta$region <- factor(meta$region)
+
+# Does depth effect depend on humana activity ?
+species_cols <- setdiff(colnames(avg_transect),
+                        c("site", "depth", "region", "key", "total_cover"))
+
+# --- diagnostics (replaces sum(ok), table(...[ok]), setdiff(...) ) ---
+table(meta$region)                                  # sites x depths per region
+setdiff(avg_transect$key, env_site$key)             # want character(0)
+summary(meta$human)
+
+# --- Does the depth effect depend on human activity? ---
+
+# total cover
+m1 <- lm(log1p(total_cover) ~ depth * human + region, data = meta)
+summary(m1)
+
+# composition
+comm <- decostand(as.matrix(meta[, species_cols]), "hellinger")
+adonis2(dist(comm) ~ depth * human, data = meta,
+        by = "terms",
+        permutations = how(nperm = 999, blocks = meta$region))
