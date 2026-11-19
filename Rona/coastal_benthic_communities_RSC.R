@@ -16,6 +16,7 @@ library(fmsb)
 library(NbClust)
 
 
+
 # reading in data
 setwd("C:/Users/rona.schenk/OneDrive - HESSO/7_Courses/2026_F_Statistics/Group Project/costal_benthic_communities_analysis/Rona")
 benthic <- read.csv("benthic_clean.csv")
@@ -55,10 +56,7 @@ benthic_dist <- dist(benthic_hel, method = "euclidean")
 
 # Clustering with NbClust, for all indices
 nb <- NbClust(benthic_hel,
-              diss     = benthic_dist,
-              distance = NULL,
-              min.nc   = 2,
-              max.nc   = 10,
+              distance = "euclidean",
               method   = "kmeans",
               index    = "all") # all results in plot, with 5 as best number. Also tested for "ch" (), "gap" (2) and "silhouette" (5)
 
@@ -70,23 +68,16 @@ km <- kmeans(benthic_hel, centers = 5, nstart = 100, iter.max = 100)
 community <- factor(km$cluster)
 table(community)
 
-km.2 <- kmeans(benthic_dist, centers = 5, nstart = 100, iter.max = 100)
-community.2 <- factor(km.2$cluster)
-table(community.2)
-
-
-# save clusters in df (for both versions of k-means clustering)
+# save clusters in df
 community <- data.frame(
   transect  = rownames(benthic_hel),
   community = factor(km$cluster)
 )
 
-community.2 <- data.frame(
-  transect  = rownames(benthic_dist),
-  community.2 = factor(km.2$cluster.2)
-)
+write.csv(community, "community.csv", row.names = FALSE)
 
-# plot k-means clustering
+
+# plot k-means clustering (check, AI)
 env_comm <- merge(env, community, by.x = "Transect", by.y = "transect")
 
 write.csv(env_comm, "env_comm_k5.csv", row.names = FALSE)
@@ -122,7 +113,42 @@ table(env_comm$Region, env_comm$community) # schauen, welche Community in welche
 # to which cluster can be seen in the community dataframe.
 # Question: k-means on distance or or Hellinger-matrix?
 
-write.csv(community, "community.csv", row.names = FALSE)
+
+# 3) Unsupervised clustering (linkage method = Ward)
+benthic_hel_dist <- dist(benthic_hel)
+benthic_hel_ward <- hclust(benthic_hel_dist, method = "ward.D2")
+par(mfrow = c(1, 2))
+plot(benthic_hel_dist)
+plot(benthic_hel_ward)
+
+
+# 4) analyse environmental factors
+boxplot(env[,(4:26)], las=2)
+str(env_num)
+
+# 5) PCA
+env_pca <- rda(env[,(4:26)], scale = TRUE)
+summary(env_pca)
+
+# Plot the PCA results showing the first principal component (PC1) on the x-axis
+# and the second principal component (PC2) on the y-axis
+plot(env_pca, choices = c(1, 2))
+
+# Split the plotting area into 1 row and 2 columns (side-by-side plots)
+par(mfrow = c(1, 2))
+
+# Plot the PCA biplot using default scaling (scaling 2)
+biplot(env_pca, main = "PCA - scaling 2")
+
+# Plot the PCA biplot using scaling 1 (preserves sample distances)
+biplot(env_pca, scaling = 1, main = "PCA - scaling 1")
+
+
+
+
+
+
+
 
 
 
