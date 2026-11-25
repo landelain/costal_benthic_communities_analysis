@@ -139,7 +139,7 @@ spe.bray <- vegdist(spe, dist="hellinger")
 
 # Perform classical multidimensional scaling (PCoA) on the Bray-Curtis distance matrix
 # Return coordinates in 2 dimensions and include eigenvalues
-spe.b.pcoa <- cmdscale(spe.bray, k = 2, eig = TRUE)
+spe.b.pcoa <- cmdscale(spe.bray, k = 4, eig = TRUE)
 
 #display the cmdscale output
 spe.b.pcoa
@@ -148,8 +148,8 @@ spe.b.pcoa
 
 
 # 1. Plot the ordination scores of ***SITES*** from the first two PCoA axes as text labels
-ordiplot(scores(spe.b.pcoa, choices = c(1, 2)),
-         type = "text",
+ordiplot(scores(spe.b.pcoa, choices = c(3, 4)),
+         type = "points",
          main = "PCoA with species weighted averages")
 
 
