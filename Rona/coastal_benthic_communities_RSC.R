@@ -1,10 +1,13 @@
+# ==============================================================================
 # ENV 513, Multivariate Statistics
 
-# summary: benthic species at different transects, plus environmental and spatial data
+# SUMMARY: benthic species at different transects, plus environmental and 
+# spatial data
+# ==============================================================================
 
-# 0) preparation 
 
-# packages
+# Load packages ----------------------------------------------------------------
+
 library(tidyr)
 library(dplyr)
 library(ggplot2)
@@ -16,40 +19,43 @@ library(fmsb)
 library(NbClust)
 
 
+# Data -------------------------------------------------------------------------
 
-# reading in data
-setwd("C:/Users/rona.schenk/OneDrive - HESSO/7_Courses/2026_F_Statistics/Group Project/costal_benthic_communities_analysis/Rona")
+setwd("C:/Users/rona.schenk/OneDrive - HESSO/7_Courses/2026_F_Statistics/Group 
+      Project/costal_benthic_communities_analysis/Rona")
 benthic <- read.csv("benthic_clean.csv")
 com <- read.csv("communities_site.csv")
 env <- read.csv("env_clean.csv")
 
-
-# 1) exploration
-
 # objects = benthic species, descriptors = environmental data
 
-# descriptive stats
+# Descriptive stats ------------------------------------------------------------
+
 summary(benthic)
 
-# 2) clustering (compare with paper)
+# Unsupervised Clustering (k-means)---------------------------------------------
 
-# take transect as row names
-rownames(benthic) <- benthic$Transect   # use transects as rownames 
-benthic$Transect <- NULL                # delete transect column
+# Comparison with publication
 
-dim(benthic)                            # control: 433 x 27 (# species)?
+# Take transect as row names
+rownames(benthic) <- benthic$Transect               # use transects as rownames 
+benthic$Transect <- NULL                            # delete transect column
+
+dim(benthic)                                        # control: 433 x 27 (# species)?
 
 # control before Hellinger
-all(sapply(benthic, is.numeric))   # Numerical in all columns? Should be true. 
-anyNA(benthic)                     # Any NA in the columns? Should be false. 
-sum(rowSums(benthic) == 0)         # Is any row sum = 0? Problematic bc of division / 0 in Hellinger transformation. Should be 0. 
+all(sapply(benthic, is.numeric))                    # Numerical in all columns? Should be true. 
+anyNA(benthic)                                      # Any NA in the columns? Should be false. 
+sum(rowSums(benthic) == 0)                          # Is any row sum = 0? Problematic bc of 
+                                                    # division / 0 in Hellinger transformation. Should be 0. 
 
 # Hellinger-transformation
 benthic_hel <- decostand(benthic, "hel")
 
 # control after Hellinger
-dim(benthic_hel)                   # Still 433 x 27? Nothing lost?
-summary(rowSums(benthic_hel^2))    # Should be 1's. Hellinger = Square root of relative values -> square should equal 1.
+dim(benthic_hel)                                    # Still 433 x 27? Nothing lost?
+summary(rowSums(benthic_hel^2))                     # Should be 1's. Hellinger = Square root of relative 
+                                                    # values -> square should equal 1.
 
 # Euclidean distance (prep for NbClust)
 benthic_dist <- dist(benthic_hel, method = "euclidean")
@@ -58,10 +64,12 @@ benthic_dist <- dist(benthic_hel, method = "euclidean")
 nb <- NbClust(benthic_hel,
               distance = "euclidean",
               method   = "kmeans",
-              index    = "all") # all results in plot, with 5 as best number. Also tested for "ch" (), "gap" (2) and "silhouette" (5)
+              index    = "all")                     # all results in plot, with 5 as best number. Also tested 
+                                                    # for "ch" (), "gap" (2) and "silhouette" (5)
 
-nb$Best.nc                 # best k per index
-table(nb$Best.nc[1, ])     # votes per k
+nb$Best.nc                                          # best k per index
+table(nb$Best.nc[1, ])                              # votes per k
+
 
 # k-means (benthic_hel or benthic_dist?)
 km <- kmeans(benthic_hel, centers = 5, nstart = 100, iter.max = 100)
@@ -76,6 +84,57 @@ community <- data.frame(
 
 write.csv(community, "community.csv", row.names = FALSE)
 
+
+# FAZIT CLUSTERING: If Hellinger transformation is done as in the paper (justified by many 0's), 
+# then I get the same optimal number of clusters (5 = best number for most 
+# indices, including ch and sihouette that we've seen in the course, 
+# but not for gap). Via k-means I get the clusters. Which transect belongs
+# to which cluster can be seen in the community dataframe.
+# Question: k-means on distance or or Hellinger-matrix?
+
+
+# Unsupervised Clustering ------------------------------------------------------
+
+# Linkage method = Ward)
+benthic_hel_dist <- dist(benthic_hel)
+benthic_hel_ward <- hclust(benthic_hel_dist, method = "ward.D2")
+par(mfrow = c(1, 2))
+plot(benthic_hel_dist)
+plot(benthic_hel_ward)
+
+# Analyse environmental factors (PCA) ------------------------------------------
+
+# Boxplots to see variance
+boxplot(env[,(4:26)], las=2)
+str(env_num)
+
+# PCA
+env_pca <- rda(env[,(4:26)], scale = TRUE)
+summary(env_pca)
+
+# Plot the PCA results showing the first principal component (PC1) on the x-axis
+# and the second principal component (PC2) on the y-axis
+plot(env_pca, choices = c(1, 2))
+
+# Split the plotting area into 1 row and 2 columns (side-by-side plots)
+par(mfrow = c(1, 2))
+
+# Plot the PCA biplot using default scaling (scaling 2)
+biplot(env_pca, main = "PCA - scaling 2")
+
+# Plot the PCA biplot using scaling 1 (preserves sample distances)
+biplot(env_pca, scaling = 1, main = "PCA - scaling 1")
+
+
+
+
+
+
+
+
+
+
+# X) old
 
 # plot k-means clustering (check, AI)
 env_comm <- merge(env, community, by.x = "Transect", by.y = "transect")
@@ -105,54 +164,6 @@ par(mar = c(5, 4, 4, 2) + 0.1, xpd = FALSE)  # zurücksetzen
 
 table(env_comm$Region, env_comm$community) # schauen, welche Community in welche Region gehört
 
-
-# Fazit Clustering: If Hellinger transformation is done as in the paper (justified by many 0's), 
-# then I get the same optimal number of clusters (5 = best number for most 
-# indices, including ch and sihouette that we've seen in the course, 
-# but not for gap). Via k-means I get the clusters. Which transect belongs
-# to which cluster can be seen in the community dataframe.
-# Question: k-means on distance or or Hellinger-matrix?
-
-
-# 3) Unsupervised clustering (linkage method = Ward)
-benthic_hel_dist <- dist(benthic_hel)
-benthic_hel_ward <- hclust(benthic_hel_dist, method = "ward.D2")
-par(mfrow = c(1, 2))
-plot(benthic_hel_dist)
-plot(benthic_hel_ward)
-
-
-# 4) analyse environmental factors
-boxplot(env[,(4:26)], las=2)
-str(env_num)
-
-# 5) PCA
-env_pca <- rda(env[,(4:26)], scale = TRUE)
-summary(env_pca)
-
-# Plot the PCA results showing the first principal component (PC1) on the x-axis
-# and the second principal component (PC2) on the y-axis
-plot(env_pca, choices = c(1, 2))
-
-# Split the plotting area into 1 row and 2 columns (side-by-side plots)
-par(mfrow = c(1, 2))
-
-# Plot the PCA biplot using default scaling (scaling 2)
-biplot(env_pca, main = "PCA - scaling 2")
-
-# Plot the PCA biplot using scaling 1 (preserves sample distances)
-biplot(env_pca, scaling = 1, main = "PCA - scaling 1")
-
-
-
-
-
-
-
-
-
-
-# X) old
 
 
 
